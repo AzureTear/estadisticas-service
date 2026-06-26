@@ -11,11 +11,11 @@ Prefijo de rutas: /api/estadisticas
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException 
 from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import usuario_actual
-from .db import conexion, dict_cursor, esperar_bd
+from .db import conexion, dict_cursor, esperar_bd, ping
 
 
 @asynccontextmanager
@@ -45,6 +45,15 @@ app.add_middleware(
 #   - liveness: ¿el proceso está vivo? (respuesta simple).
 #   - readiness: ¿está listo para recibir tráfico? Debe verificar la BD.
 # Luego configurar livenessProbe/readinessProbe en el Deployment de EKS.
+@app.get("/livez")
+def liveness():
+    return {"status": True}
+
+@app.get("/readyz")
+def readiness():
+    if not ping():
+        raise HTTPException(status_code=503, detail={"status": "not-ready", "db": "down"})
+    return {"status": "ready", "db": "up"}
 
 
 @app.get("/api/estadisticas/mias")
